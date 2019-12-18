@@ -1,6 +1,7 @@
 install.packages("ggplot2")
 library(ggplot2)
-
+#
+#"C:\\Users\\spark\\Desktop\\40178464_features.csv"
 #Load Feature Data
 filepath <- "C:\\Users\\spark\\Documents\\AI-DA_3\\src\\40178464_features.csv"
 feature_col_names <- c("label", "index", "nr_pix", "height", "width", "span", "rows_wth_5", "cols_with_5", "neigh1", "neigh5", 
@@ -42,8 +43,8 @@ feature_data$classification <- define_object()
 
 #Create a training Dataset
 shuffled_set <- feature_data[sample(nrow(feature_data)),]
-training_data <- shuffled_set[1:120,]
-test_data <- shuffled_set[121:160,]
+training_data <- shuffled_set[1:132,]
+test_data <- shuffled_set[133:160,]
 
 set_plot <- ggplot(training_data, aes(x=verticalness, fill = as.factor(classification))) +
   geom_histogram(binwidth = .2, alpha = .5, position = 'identity')
@@ -87,4 +88,8 @@ test_data[["predicted_class"]][test_data[["predicted_val"]] > 0.5] == 1
 correct_predictions = test_data[["predicted_class"]] == test_data[["classification"]]
 
 accuracy = nrow(test_data[correct_predictions,])/nrow(test_data)
+
+
+
+
 
