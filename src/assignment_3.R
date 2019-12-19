@@ -1,7 +1,5 @@
-install.packages("ggplot2")
 library(ggplot2)
-#
-#"C:\\Users\\spark\\Desktop\\40178464_features.csv"
+
 #Load Feature Data
 filepath <- "C:\\Users\\spark\\Documents\\AI-DA_3\\src\\40178464_features.csv"
 feature_col_names <- c("label", "index", "nr_pix", "height", "width", "span", "rows_wth_5", "cols_with_5", "neigh1", "neigh5", 
@@ -9,13 +7,16 @@ feature_col_names <- c("label", "index", "nr_pix", "height", "width", "span", "r
                        "nr_regions", "nr_eyes", "hollowness", "image_fill")
 
 feature_data <- read.csv(filepath, header = TRUE, sep = "\t", col.names = feature_col_names)
+feature_data$label <- tolower(as.factor(feature_data$label))
+feature_data$classification <- NA
+
+set.seed(3060)
 
 #Insert classification of Object (Living = 1 or Nonliving = 0)
-feature_data$classification <- NA
 define_object <- function()
 {
-  living <- c("Banana", "Cherry", "Flower", "Pear")
-  nonliving <- c("Envelope", "Golfclub", "Pencil", "Wineglass")
+  living <- c("banana", "cherry", "flower", "pear")
+  nonliving <- c("envelope", "golfclub", "pencil", "wineglass")
   classifications <- c()
   for (i in 1:nrow(feature_data))
   {
@@ -41,6 +42,8 @@ define_object <- function()
 
 feature_data$classification <- define_object()
 
+
+
 #Create a training Dataset
 shuffled_set <- feature_data[sample(nrow(feature_data)),]
 training_data <- shuffled_set[1:132,]
@@ -52,7 +55,7 @@ set_plot
 ggsave('hist_verticalness.png', scale = 1, dpi = 400)
 
 
-#Generate a Logistic Regression Model using glm function with the Training Data
+#1.1 Generate a Logistic Regression Model using glm function with the Training Data
 log_model <- glm(classification ~ verticalness,
                  data = training_data,
                  family = 'binomial')
@@ -71,24 +74,44 @@ curve_plot <- ggplot(training_data, aes(x=verticalness, y=classification)) +
   geom_line(data=fitted_curve, colour="orange", size=1)
 curve_plot
 ggsave('log_model_fitted_curve.png', scale = 1, dpi = 400)
-#Calculate Accuracy of Model using Training Data
-training_data[["predicted_val"]] = predict(log_model, training_data, type="response")
-training_data[["predicted_class"]] = 0
-training_data[["predicted_class"]][training_data[["predicted_val"]] > 0.5] == 1
 
-correct_predictions = training_data[["predicted_class"]] == training_data[["classification"]]
+#1.2 Calculate Accuracy of Model using the 160 items in the Feature Data
+feature_data[["predicted_val"]] = predict(log_model, feature_data, type="response")
+feature_data[["predicted_class"]] = 0
+feature_data[["predicted_class"]][feature_data[["predicted_val"]] > 0.5] == 1
 
-accuracy = nrow(training_data[correct_predictions,])/nrow(training_data)
+correct_predictions = feature_data[["predicted_class"]] == feature_data[["classification"]]
 
-#Calculate Accuracy of Model using Test Data
-test_data[["predicted_val"]] = predict(log_model, test_data, type="response")
-test_data[["predicted_class"]] = 0
-test_data[["predicted_class"]][test_data[["predicted_val"]] > 0.5] == 1
+accuracy = nrow(feature_data[correct_predictions,])/nrow(feature_data)
 
-correct_predictions = test_data[["predicted_class"]] == test_data[["classification"]]
+#1.3 Custom classifier
 
-accuracy = nrow(test_data[correct_predictions,])/nrow(test_data)
+#hollowness, width and nr_pix
 
+kfolds = 5
+cv_accuracy <- 0
+for (i in 1:kfolds)
+{
+  shuffled_set <- feature_data[sample(nrow(feature_data)),]
+  shuffled_set$folds <- cut(seq(1,nrow(shuffled_set)), breaks = kfolds, labels = FALSE)
+  
+  training_data <- shuffled_set[shuffled_set$folds != i,]
+  test_data <- shuffled_set[shuffled_set$folds == i,]
+  
+  fit <- glm(classification ~ nr_pix + width + hollowness,
+                     data = training_data,
+                     family = 'binomial')
+
+  test_data[["predicted_val"]] = predict(fit, test_data, type="response")
+  test_data[["predicted_class"]] = 0
+  test_data[["predicted_class"]][test_data[["predicted_val"]] > 0.5] == 1
+  
+  correct_predictions = test_data[["predicted_class"]] == test_data[["classification"]]
+  
+  accuracy = nrow(test_data[correct_predictions,])/nrow(test_data)
+  cv_accuracy <- cv_accuracy + accuracy
+}
+cv_accuracy <- cv_accuracy / kfolds
 
 
 
