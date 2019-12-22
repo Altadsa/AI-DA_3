@@ -24,11 +24,11 @@ colnames(training_data) <- feature_col_names
 library(class)
 
 
-training_data <- training_data[sample(nrow(training_data)),]
-train_size <- 0.8 * nrow(training_data)
+training_sample <- training_data[sample(nrow(training_data)),]
+train_size <- 0.8 * nrow(training_sample)
 
-train_x <- training_data[1:train_size,]
-test_x <- training_data[(train_size+1):nrow(training_data),]
+train_x <- training_sample[1:train_size,]
+test_x <- training_sample[(train_size+1):nrow(training_sample),]
 cl <- train_x$label
 odd_k <- c()
 knn_acc <- c()
@@ -41,7 +41,7 @@ for (n in 1:59)
                     cl,
                     k = n)
     odd_k <- c(odd_k, n)
-    accuracy <- mean(knn_pred == training_data$label)
+    accuracy <- mean(knn_pred == training_sample$label)
     knn_acc <- c(knn_acc, 1-accuracy)
   }
 }
@@ -50,30 +50,26 @@ knn_table <- data.frame("k"= odd_k, "error.rate" = knn_acc)
 
 #2.2 KNN using 5 fold Cross validation for same 8 features
 kfolds = 5
-
+cl_fs <- colnames(training_sample)[3:10]
 cv_err <- c()
 inv_k <-c()
 for (n in 1:59)
 {
   if (n %% 2 == 1)
   {
+    training_sample$folds <- cut(seq(1,nrow(training_sample)), breaks = kfolds, labels = FALSE)
     cv_accuracy = 0
     for (i in 1:kfolds)
     {
-      training_data  = training_data[sample(nrow(training_data)),]
-      training_data$folds = cut(seq(1,nrow(training_data)), breaks = kfolds, labels = FALSE)
-      
-      cl_fs <- colnames(training_data)[3:10]
-      
-      fold_train_items = training_data[training_data$folds != i,]
-      fold_validation_items = training_data[training_data$folds == i,]
+      fold_train_items = training_sample[training_sample$folds != i,]
+      fold_validation_items = training_sample[training_sample$folds == i,]
       
       knn_pred = knn(fold_train_items[,cl_fs],
                      fold_validation_items[,cl_fs],
                      fold_train_items$label,
                      k = n)
-      correct_test_items = nrow(training_data[knn_pred == training_data$label,])
-      test_accuracy = correct_test_items/nrow(training_data)
+      correct_items = nrow(training_sample[knn_pred == training_sample$label,])
+      test_accuracy = correct_items/nrow(training_sample)
       
       cv_accuracy = cv_accuracy + test_accuracy
     }
