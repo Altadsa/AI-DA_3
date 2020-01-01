@@ -1,4 +1,5 @@
 library(ggplot2)
+library(gmodels)
 
 #Load Feature Data
 filepath <- "C:\\Users\\spark\\Documents\\AI-DA_3\\src\\40178464_features.csv"
@@ -48,9 +49,9 @@ shuffled_set <- feature_data[sample(nrow(feature_data)),]
 training_data <- shuffled_set[1:132,]
 test_data <- shuffled_set[133:160,]
 
-set_plot <- ggplot(training_data, aes(x=verticalness, fill = as.factor(classification))) +
+vert_hist <- ggplot(training_data, aes(x=verticalness, fill = as.factor(classification))) +
   geom_histogram(binwidth = .2, alpha = .5, position = 'identity')
-set_plot
+vert_hist
 ggsave('hist_verticalness.png', scale = 1, dpi = 400)
 
 
@@ -103,20 +104,18 @@ kfolds = 5
 #                                 feature.b = "",
 #                                 feature.c = "",
 #                                 p.value = 0.0,
-#                                 train.accuracy = 0.0,
 #                                 test.accuracy = 0.0,
 #                                 stringsAsFactors = FALSE)
 # 
 # combinations <- combn(colnames(feature_data)[3:22],3)
+# shuffled_set <- feature_data[sample(nrow(feature_data)),]
+# shuffled_set$folds <- cut(seq(1,nrow(shuffled_set)), breaks = kfolds, labels = FALSE)
 # for (i in 1:ncol(combinations))
 # {
 #   combo = combinations[,i]
 #   print(sprintf("Testing combination %s", i))
-#   shuffled_set <- feature_data[sample(nrow(feature_data)),]
-#   shuffled_set$folds <- cut(seq(1,nrow(shuffled_set)), breaks = kfolds, labels = FALSE)
 #   for (p in seq(0.01, 0.99, by = 0.01))
 #   {
-#     train_acc <- 0
 #     test_acc <- 0
 #     for (i in 1:kfolds)
 #     {
@@ -129,44 +128,27 @@ kfolds = 5
 #                data = training_data,
 #                family = 'binomial')
 # 
-# 
-#       #Calculate Accuracy over training data
-#       training_data$predicted_val = predict(fit, newdata = training_data, type="response")
-#       training_data$predicted_class = 0
-#       training_data$predicted_class[training_data$predicted_val > p] = 1
-#       
-#       correct_predictions = training_data$predicted_class == training_data$classification
-#       
-#       f_accuracy = nrow(training_data[correct_predictions,])/nrow(training_data)
-#       train_acc <- train_acc + f_accuracy
-#       
 #       #Calculate Accuracy over test data
-#       test_data$predicted_val = predict(fit, newdata = test_data, type="response")
+#       test_data$predicted_val = predict(fit, newdata = test_data, type ="response")
 #       test_data$predicted_class = 0
 #       test_data$predicted_class[test_data$predicted_val > p] = 1
-#       
+# 
 #       correct_predictions = test_data$predicted_class == test_data$classification
-#       
+# 
 #       f_accuracy = nrow(test_data[correct_predictions,])/nrow(test_data)
-#       test_acc <- test_acc + f_accuracy     
+#       test_acc <- test_acc + f_accuracy
 #     }
 # 
-#     train_acc <- train_acc / kfolds
 #     test_acc <- test_acc / kfolds
-#     combo_class_table <- rbind(combo_class_table, c(combo[1], combo[2], combo[3], p, train_acc, test_acc))
+#     combo_class_table <- rbind(combo_class_table, c(combo[1], combo[2], combo[3], p, test_acc))
 #   }
 #     #print(sprintf("Cross-Validated Accuracy with a p>%s cut-off: %s", p, cv_accuracy))
-#   
+# 
 # }
 # write.csv(combo_class_table, "combotable.csv")
 
 
-
-
-
-
-p <- 0.39
-train_acc <- 0
+p <- 0.4
 test_acc <- 0
 shuffled_set <- feature_data[sample(nrow(feature_data)),]
 shuffled_set$folds <- cut(seq(1,nrow(shuffled_set)), breaks = kfolds, labels = FALSE)
@@ -179,20 +161,10 @@ for (i in 1:kfolds)
              data = training_data,
              family = 'binomial')
   
-  # #Predict accuracy over training data
-  # training_data$predicted_val = predict(fit, training_data, type="response")
-  # training_data$predicted_class = 0
-  # training_data$predicted_class[training_data$predicted_val > p] = 1
-  # 
-  # correct_predictions = training_data[["predicted_class"]] == training_data[["classification"]]    
-  # 
-  # f_accuracy <- nrow(training_data[correct_predictions,])/nrow(training_data)
-  # train_acc <- train_acc + f_accuracy
-  
   #Predict accuracy over test data
   test_data$predicted_val = predict(fit, test_data, type="response")
   test_data$predicted_class = 0
-  test_data$predicted_class[test_data$predicted_val > 0.38] = 1
+  test_data$predicted_class[test_data$predicted_val > p] = 1
   
   correct_predictions = test_data$predicted_class == test_data$classification
 
@@ -200,7 +172,6 @@ for (i in 1:kfolds)
   test_acc <- test_acc + f_accuracy
   
 }
-train_acc <- train_acc / kfolds
 cv_acc <- test_acc / kfolds
 
 
@@ -215,25 +186,6 @@ correct <- nrow(binom_sam[binom_sam$classification == r_cl,])
 
 
 #Check classification prediciton for living things
-class_table <- data.frame("label" = NA,
-                          "classification" = NA,
-                          "correct.classifications" = NA,
-                          "incorrect.classifications" = NA,
-                          "total.obersvations" = NA,
-                          stringsAsFactors = FALSE)
-
-for (label in c(living, nonliving))
-{
-  if (label %in% living) cl <- "living"
-  else cl <- "nonliving"
-  
-  obs <- test_data[test_data$label == label,]
-  correct_class <- obs[obs$classification == obs$predicted_class]
-  wrong_class <- obs[obs$classification != obs$predicted_class,]
-  class_table <- rbind(class_table, c(label, cl, nrow(correct_class), nrow(wrong_class), nrow(obs)))
-}
-
-class_table <- na.omit(class_table)
 
 #Detemrine which features might improve the accuracy of the model
 
@@ -241,7 +193,7 @@ class_table <- na.omit(class_table)
 rem_features <- feature_col_names[!feature_col_names %in% c("label","index", "span", "cols_with_5", "neigh5")]
 
 #Create a table to log the results of each test
-log_4_table <- data.frame(feature = "", p.value = 0.0, train.accuracy = 0, test.accuracy = 0,
+log_4_table <- data.frame(feature = "", p.value = 0.0, test.accuracy = 0,
                           stringsAsFactors = FALSE)
 
 #Perform 5 fold cross validation for different p-cutoffs to determine which values and features will show improved accuracy
@@ -249,13 +201,9 @@ for (i in 1:length(rem_features))
 {
   feature <- rem_features[i]  
   print(sprintf("Test %s for %s", i, feature))
-
   for (p in seq(0.01,0.99, by = 0.01))
   {
-    train_acc <- 0
     test_acc <- 0
-    shuffled_set <- feature_data[sample(nrow(feature_data)),]
-    shuffled_set$folds <- cut(seq(1,nrow(shuffled_set)), breaks = kfolds, labels = FALSE)
     for (i in 1:kfolds)
     {
       training_data <- shuffled_set[shuffled_set$folds != i,]
@@ -265,16 +213,6 @@ for (i in 1:length(rem_features))
                    eval(parse(text = feature)),
                  data = training_data,
                  family = 'binomial')
-      
-      #Predict accuracy over training data
-      training_data$predicted_val = predict(fit, training_data, type="response")
-      training_data$predicted_class = 0
-      training_data$predicted_class[training_data$predicted_val > p] = 1
-      
-      correct_predictions = training_data[["predicted_class"]] == training_data[["classification"]]    
-      
-      f_accuracy <- nrow(training_data[correct_predictions,])/nrow(training_data)
-      train_acc <- train_acc + f_accuracy
       
       #Predict accuracy over test data
       test_data$predicted_val = predict(fit, test_data, type="response")
@@ -287,14 +225,11 @@ for (i in 1:length(rem_features))
       test_acc <- test_acc + f_accuracy
       
     }
-    train_acc <- train_acc / kfolds
     test_acc <- test_acc / kfolds
 
-    #print(sprintf("Cross-Validated Training Accuracy with a p>%s cut-off: %s", p, train_acc))
-    #print(sprintf("Cross-Validated Test Accuracy with a p>%s cut-off: %s", p, test_acc))
     if (test_acc > cv_acc)
     {
-      log_4_table <- rbind(log_4_table, c(feature, p, train_acc, test_acc))     
+      log_4_table <- rbind(log_4_table, c(feature, p, test_acc))     
     }
   }
 }

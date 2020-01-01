@@ -3,6 +3,7 @@ library(rpart)
 library(tree)
 library(ipred)
 library(ggplot2)
+library(caret)
 set.seed(3060)
 
 datapath <- "C:\\Users\\spark\\Documents\\AI-DA_3\\src\\training_data\\features"
@@ -38,7 +39,9 @@ oob_accuracies <- c()
 for (bag_size in bag_sizes)
 {
   bag_sample <- train_sample[sample(bag_size),]
-  t_bag <- bagging(cl_formula, data = bag_sample, coob = TRUE)
+  #t_bag <- bagging(cl_formula, data = bag_sample, coob = TRUE)
+  
+  t_bag()
   
   pred_vals <- predict(t_bag, train_sample)
   correct <- train_sample$label == pred_vals
@@ -46,6 +49,8 @@ for (bag_size in bag_sizes)
   print(sprintf("Accuracy using bag size %s: %s", bag_size, accuracy))
   oob_accuracies <- c(oob_accuracies, accuracy)
 }
+
+
 
 #b. Using 5 fold cross validation
 kfolds <- 5
