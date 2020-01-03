@@ -24,6 +24,8 @@ training_data <- data.frame(matrix(ncol = 22, nrow = 0))
 training_data <- do.call(rbind, test)
 colnames(training_data) <- feature_col_names
 
+
+#Set the formula that will be used to build the models
 features <- paste(colnames(training_data)[3:10], collapse = "+")
 cl_formula <- as.formula(paste("label ~ ", features, sep = ""))
 
@@ -57,7 +59,6 @@ kfolds <- 5
 cv_accuracies <- c()
 for (bag_size in bag_sizes)
 {
-  bag_sample <- train_sample[sample(bag_size),]
   bag_sample$folds <- cut(seq(1,nrow(bag_sample)),breaks=kfolds,labels=FALSE)
   cv_accuracy <- 0
   for (n in 1:kfolds)

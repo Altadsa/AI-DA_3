@@ -51,7 +51,7 @@ for (n in 1:59)
     knn_acc <- c(knn_acc, accuracy)
   }
 }
-knn_table <- data.frame("k"= odd_k, "error.rate" = knn_acc)
+knn_table <- data.frame("k"= odd_k, "accuracy" = knn_acc)
 
 
 #2.2 KNN using 5 fold Cross validation for same 8 features
@@ -87,36 +87,36 @@ for (n in 1:59)
 }
 
 knn_table <- cbind(knn_table, cv_err, inv_k)
-colnames(knn_table)[3] <- "cv.error.rate"
+colnames(knn_table)[3] <- "cv.accuracy"
 colnames(knn_table)[4] <- "1.div.k"
 
 k_ticks <- c(0.01, 0.02, 0.05, 0.10, 0.20, 0.50, 1.0)
 err_plt <- ggplot(knn_table, aes(x = knn_table$`1.div.k`),
                   position_dodge()) +
-  geom_line(aes(y = knn_table$cv.error.rate),
+  geom_line(aes(y = knn_table$cv.accuracy),
             colour = "red",
             lwd =1.25,
             lty = "longdash") +
-  geom_line(aes(y = knn_table$error.rate),
+  geom_line(aes(y = knn_table$accuracy),
             colour = "blue",
             lwd = 1.25,
             lty = "longdash") +  
   xlab("1/K") +
-  ylab("Error Rate") + 
-  geom_point(aes(y = knn_table$cv.error.rate, fill = "red"),
+  ylab("Accuracy Rate") + 
+  geom_point(aes(y = knn_table$cv.accuracy, fill = "blue"),
              col = "black",
              pch = 21,
              size = 2.5) +
-  geom_point(aes(y = knn_table$error.rate, fill = "blue"),
+  geom_point(aes(y = knn_table$accuracy, fill = "red"),
              col = "black",
              pch = 21,
              size = 2.5) +
   scale_x_log10(breaks = k_ticks) +
   scale_fill_discrete(name = "",
-                      breaks = c("red", "blue"),
+                      breaks = c("blue", "red"),
                       labels = c("Cross-Val", "Original"))
 err_plt
-
+ggsave("knn_acc.png", scale = 1, dpi = 400)
 #2.3 Evaluating the prediciton accuracy of the model for each object
 
 #Using a k value of 5 based on the results table of the cross validation models
@@ -133,7 +133,8 @@ for (i in 1:kfolds)
                  k = 5)
   ct <- CrossTable(x = test_items$label,
                    y = knn_pred,
-                   prop.chisq = FALSE)
+                   prop.chisq = FALSE,
+                   prop.c = FALSE)
 }
 
 

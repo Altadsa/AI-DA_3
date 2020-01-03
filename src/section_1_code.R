@@ -1,5 +1,6 @@
 library(ggplot2)
 library(gmodels)
+library(plyr)
 
 #Load Feature Data
 filepath <- "C:\\Users\\spark\\Documents\\AI-DA_3\\src\\40178464_features.csv"
@@ -152,6 +153,9 @@ p <- 0.4
 test_acc <- 0
 shuffled_set <- feature_data[sample(nrow(feature_data)),]
 shuffled_set$folds <- cut(seq(1,nrow(shuffled_set)), breaks = kfolds, labels = FALSE)
+
+p_cont <- data.frame()
+
 for (i in 1:kfolds)
 {
   training_data <- shuffled_set[shuffled_set$folds != i,]
@@ -170,68 +174,117 @@ for (i in 1:kfolds)
 
   f_accuracy = nrow(test_data[correct_predictions,])/nrow(test_data)
   test_acc <- test_acc + f_accuracy
+
+  #This code is for 1.5. It stores the test data labels and the predictions from the model
+    
+  fold_cont <- CrossTable(x = test_data$label,
+                          y = test_data$predicted_class,
+                          prop.chisq = F,
+                          prop.r = T,
+                          prop.c = F,
+                          prop.t = F )
+  
+  #Add the results for this fold to the table and rbind it to the main table
+  cont_t <- as.data.frame.matrix(fold_cont$t)
+  cont_t <- cbind("label" = rownames(cont_t), cont_t)
+  p_cont <- rbind(p_cont, cont_t)
   
 }
+
+
 cv_acc <- test_acc / kfolds
 
 
 #1.4
+
+#How many correct predictions must be made by the random model?
+r_size <- nrow(shuffled_set)
+r_successes <- cv_acc * nrow(shuffled_set)
+
+r_binom <- pbinom(r_successes, r_size, 0.5)
+
+x <- 0:200
+hx <- dbinom(x, r_size, 0.5)
+plot(x, hx,
+     xlab = "Correct Predictions",
+     ylab = "Probability Density",
+     main = "Binomial Distribution for a Random classification model")
+abline(v = r_successes, col = "blue")
+ggplot(data = NULL, aes(x = x)) +
+  geom_point(aes(y = hx)) +
+  geom_vline(xintercept = r_successes,
+             col = "blue") +
+  xlab("Correct Predictions") +
+  ylab("Probability Density") +
+  ggtitle("Binomial Distribution for a Random classification model")
+ggsave("binom_random_class.png", scale = 1, dpi = 400)
+
+
 binom_sam <- shuffled_set
 r_cl <- sample(c(0,1), 1, replace = TRUE)
 correct <- nrow(binom_sam[binom_sam$classification == r_cl,])
-#runif()
 
-#1.5 Additional feature to improve model 1.3 accuracy
+#1.5
 
+#Taking the table created in 1.3 in anticipation of this section, we clean the table rownames and get the total
+#for each observation
 
+rownames(p_cont) <- 1:nrow(p_cont)
+p_cont <- ddply(p_cont, "label", numcolwise(sum))
+p_cont$total <- rowSums(p_cont[,2:3])
 
-#Check classification prediciton for living things
+write.csv(x = p_cont, file = "prediciton_test_results.csv")
+
 
 #Detemrine which features might improve the accuracy of the model
 
 #Get remaining features not used in previous model
-rem_features <- feature_col_names[!feature_col_names %in% c("label","index", "span", "cols_with_5", "neigh5")]
+# rem_features <- feature_col_names[!feature_col_names %in% c("label","index", "span", "cols_with_5", "neigh5")]
 
 #Create a table to log the results of each test
-log_4_table <- data.frame(feature = "", p.value = 0.0, test.accuracy = 0,
-                          stringsAsFactors = FALSE)
+# log_4_table <- data.frame(feature = "", p.value = 0.0, test.accuracy = 0,
+                          # stringsAsFactors = FALSE)
 
 #Perform 5 fold cross validation for different p-cutoffs to determine which values and features will show improved accuracy
-for (i in 1:length(rem_features))
-{
-  feature <- rem_features[i]  
-  print(sprintf("Test %s for %s", i, feature))
-  for (p in seq(0.01,0.99, by = 0.01))
-  {
-    test_acc <- 0
-    for (i in 1:kfolds)
-    {
-      training_data <- shuffled_set[shuffled_set$folds != i,]
-      test_data <- shuffled_set[shuffled_set$folds == i,]
-      
-      fit <- glm(classification ~ span + cols_with_5 + neigh5 +
-                   eval(parse(text = feature)),
-                 data = training_data,
-                 family = 'binomial')
-      
-      #Predict accuracy over test data
-      test_data$predicted_val = predict(fit, test_data, type="response")
-      test_data$predicted_class = 0
-      test_data$predicted_class[test_data$predicted_val > p] = 1
-      
-      correct_predictions = test_data$predicted_class == test_data$classification
-      
-      f_accuracy = nrow(test_data[correct_predictions,])/nrow(test_data)
-      test_acc <- test_acc + f_accuracy
-      
-    }
-    test_acc <- test_acc / kfolds
 
-    if (test_acc > cv_acc)
-    {
-      log_4_table <- rbind(log_4_table, c(feature, p, test_acc))     
-    }
-  }
-}
+
+
+# for (i in 1:length(rem_features))
+# {
+#   feature <- rem_features[i]  
+#   print(sprintf("Test %s for %s", i, feature))
+#   for (p in seq(0.01,0.99, by = 0.01))
+#   {
+#     test_acc <- 0
+#     for (i in 1:kfolds)
+#     {
+#       training_data <- shuffled_set[shuffled_set$folds != i,]
+#       test_data <- shuffled_set[shuffled_set$folds == i,]
+#       
+#       fit <- glm(classification ~ span + cols_with_5 + neigh5 +
+#                    eval(parse(text = feature)),
+#                  data = training_data,
+#                  family = 'binomial')
+#       
+#       #Predict accuracy over test data
+#       test_data$predicted_val = predict(fit, test_data, type="response")
+#       test_data$predicted_class = 0
+#       test_data$predicted_class[test_data$predicted_val > p] = 1
+#       
+#       correct_predictions = test_data$predicted_class == test_data$classification
+#       
+#       f_accuracy = nrow(test_data[correct_predictions,])/nrow(test_data)
+#       test_acc <- test_acc + f_accuracy
+#       
+#     }
+#     test_acc <- test_acc / kfolds
+# 
+#     if (test_acc > cv_acc)
+#     {
+#       log_4_table <- rbind(log_4_table, c(feature, p, test_acc))     
+#     }
+#   }
+# }
+# write.csv(log_4_table, "4_feature_log_model_accuracies.csv")
 
 
