@@ -15,13 +15,13 @@ feature_col_names <- c("label", "index", "nr_pix", "height", "width", "span", "r
 csv_files <- list.files(path = datapath, pattern = ".csv", 
                         full.names = TRUE,
                         recursive = FALSE)
-test <- lapply(csv_files, function(x) {
-  csv_features <- read.csv(x, sep = "\t", header = FALSE, col.names = feature_col_names)
-})
 
 #Load Training Data into dataframe
 training_data <- data.frame(matrix(ncol = 22, nrow = 0))
-training_data <- do.call(rbind, test)
+training_data <- do.call(rbind, 
+                         lapply(csv_files, function(x) {
+  csv_features <- read.csv(x, sep = "\t", header = FALSE, col.names = feature_col_names)
+}))
 colnames(training_data) <- feature_col_names
 
 
@@ -41,9 +41,9 @@ oob_accuracies <- c()
 for (bag_size in bag_sizes)
 {
   bag_sample <- train_sample[sample(bag_size),]
-  #t_bag <- bagging(cl_formula, data = bag_sample, coob = TRUE)
+  t_bag <- bagging(cl_formula, data = bag_sample, coob = TRUE)
   
-  t_bag()
+  #t_bag()
   
   pred_vals <- predict(t_bag, train_sample)
   correct <- train_sample$label == pred_vals
@@ -101,22 +101,25 @@ kfolds <- 5
 n_trees <- seq(25,400,by = 25)
 n_predictors <- c(2,4,6,8)
 
-train_sample <- training_data[sample(nrow(training_data)),]
+best_acc <- 0
+
+f_sample <- train_sample
+f_sample$folds = cut(seq(1,nrow(f_sample)),breaks=kfolds,labels=FALSE)
 for (n_tree in n_trees)
 {
-  cv_accuracy <- 0
   for (n_predictor in n_predictors)
   {
-    pred_features <- sample(features)
-    pred_formula <- as.formula(paste("label ~ ", sample(pred_features, n_predictor, replace = TRUE), sep = ""))
-    f_sample <- train_sample[sample(nrow(train_sample)),]
-    f_sample$folds = cut(seq(1,nrow(f_sample)),breaks=kfolds,labels=FALSE)
-    for (n in kfolds)
+    cv_accuracy <- 0
+    #pred_features <- sample(features)
+    #pred_formula <- as.formula(paste("label ~ ", sample(pred_features, n_predictor, replace = TRUE), sep = ""))
+    for (i in 1:kfolds)
     {
-      train_data <- f_sample[f_sample$folds != n, ]
-      val_data <- f_sample[f_sample$folds == n, ]
+      train_data <- f_sample[f_sample$folds != i, ]
+      val_data <- f_sample[f_sample$folds == i, ]
       
-      r_forest <- randomForest(pred_formula, data = train_data, ntree = n_tree)
+      r_forest <- randomForest(cl_formula, data = train_data, 
+                               ntree = n_tree,
+                               mtry = n_predictor)
       pred_vals <- predict(r_forest, val_data)
       levels(pred_vals) <- levels(val_data$label)
       correct <- val_data$label == pred_vals
@@ -124,6 +127,45 @@ for (n_tree in n_trees)
       cv_accuracy <- cv_accuracy + accuracy
     }
     cv_accuracy <- cv_accuracy / kfolds
-    print(sprintf("Accuracy using Random Forests with %s trees and %s predictors: %s", n_tree, n_predictor, cv_accuracy)) 
+    if (cv_accuracy > best_acc)
+    {
+      best_acc <- cv_accuracy
+      print(sprintf("Accuracy using Random Forests with %s trees and %s predictors: %s", n_tree, n_predictor, cv_accuracy)) 
+    }
   }
 }
+
+#3.3 
+
+cv_sample_accuracies <- c()
+
+for (n in 1:20)
+{
+  f_sample <- train_sample[sample(nrow(train_sample)), ]
+  f_sample$folds = cut(seq(1,nrow(f_sample)),breaks=kfolds,labels=FALSE)
+  cv_accuracy <- 0
+  for (i in 1:kfolds)
+  {
+    train_data <- f_sample[f_sample$folds != i, ]
+    val_data <- f_sample[f_sample$folds == i, ]
+    
+    r_forest <- randomForest(cl_formula, data = train_data, 
+                             ntree = 325,
+                             mtry = 2)
+    pred_vals <- predict(r_forest, val_data)
+    levels(pred_vals) <- levels(val_data$label)
+    correct <- val_data$label == pred_vals
+    accuracy <- nrow(val_data[correct,])/nrow(val_data)
+    cv_accuracy <- cv_accuracy + accuracy
+  }
+  cv_accuracy <- cv_accuracy / kfolds
+  cv_sample_accuracies <- c(cv_sample_accuracies, cv_accuracy)
+}
+
+print(mean(cv_sample_accuracies))
+x <- seq(0,20, by = 1)
+hx <- dnorm(x, mean(cv_sample_accuracies), sd(cv_sample_accuracies))
+plot(x,hx)
+
+ggplot(data = NULL, aes(x)) +
+  geom_line(aes(y = hx))
