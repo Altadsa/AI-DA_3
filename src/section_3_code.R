@@ -169,3 +169,37 @@ plot(x,hx)
 
 ggplot(data = NULL, aes(x)) +
   geom_line(aes(y = hx))
+
+
+#3.4
+
+seven_feature_combin <- combn(colnames(training_data[3:10]), 7)
+
+for (n in 1:ncol(seven_feature_combin))
+{
+  f_combo <- seven_feature_combin[,n]
+  new_features <- paste(f_combo, collapse = "+")
+  new_cl_formula <- as.formula(paste("label ~ ", new_features, sep = ""))
+  cv_accuracy <- 0
+  for (i in 1:kfolds)
+  {
+    train_data <- f_sample[f_sample$folds != i, ]
+    val_data <- f_sample[f_sample$folds == i, ]
+    
+    r_forest <- randomForest(new_cl_formula, data = train_data, 
+                             ntree = 325,
+                             mtry = 2)
+    pred_vals <- predict(r_forest, val_data)
+    levels(pred_vals) <- levels(val_data$label)
+    correct <- val_data$label == pred_vals
+    accuracy <- nrow(val_data[correct,])/nrow(val_data)
+    cv_accuracy <- cv_accuracy + accuracy
+  }
+  print(sprintf("CV Accuracy: %s", cv_accuracy / kfolds))
+}
+
+
+
+
+
+

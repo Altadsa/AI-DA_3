@@ -13,13 +13,12 @@ set.seed(3060)
 csv_files <- list.files(path = datapath, pattern = ".csv", 
                                 full.names = TRUE,
                                 recursive = FALSE)
-test <- lapply(csv_files, function(x) {
-    csv_features <- read.csv(x, sep = "\t", header = FALSE, col.names = feature_col_names)
-})
 
 #Load Training Data into dataframe
 training_data <- data.frame(matrix(ncol = 22, nrow = 0))
-training_data <- do.call(rbind, test)
+training_data <- do.call(rbind, lapply(csv_files, function(x) {
+  csv_features <- read.csv(x, sep = "\t", header = FALSE, col.names = feature_col_names)
+}))
 colnames(training_data) <- feature_col_names
 
 #2.1 KNN model for features 1-8
